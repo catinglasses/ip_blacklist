@@ -3,9 +3,9 @@ services:
     image: postgres:15-alpine
     container_name: ip-blacklist-db
     environment:
-      - POSTGRES_USER=$(DB_USER)
-      - POSTGRES_PASSWORD=$(DB_PASS)
-      - POSTGRES_DB=$(DB_NAME)
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5434:5432"
     volumes:
@@ -23,15 +23,15 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST:${DB_HOST}
-      - DB_PORT:${DB_PORT}
-      - DB_USER:${DB_USER}
-      - DB_PASS:${DB_PASS}
-      - DB_NAME:${DB_NAME}
-      - DBMS=postgresql
-      - DB_DRIVER=asyncpg
-      - IP_COOLING_PERIOD=30
-      - INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      DBMS: postgresql
+      DB_DRIVER: asyncpg
+      IP_COOLING_PERIOD: 30
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
     depends_on:
       - postgres
     command: ["sh", "-c", "alembic upgrade head && sleep 5 && uvicorn main:app --host 0.0.0.0 --port 8080"]

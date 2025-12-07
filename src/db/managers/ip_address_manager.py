@@ -38,7 +38,7 @@ class IPAddressDBManager(BaseDBManager):
         values = {k: v for k, v in values.items() if v is not None}
 
         async with self.use_or_create_session(
-            current_session=current_session
+            current_session=current_session,
         ) as session:
             statement = (
                 insert(IPAddress)
@@ -71,7 +71,7 @@ class IPAddressDBManager(BaseDBManager):
             )
 
         async with self.use_or_create_session(
-            current_session=current_session
+            current_session=current_session,
         ) as session:
             if id is not None:
                 query = select(IPAddress).where(IPAddress.id == id)
@@ -79,7 +79,7 @@ class IPAddressDBManager(BaseDBManager):
                 query = select(IPAddress).where(IPAddress.ip == ip)
             else:
                 raise ValueError(
-                    "Can't fetch ip_address without id or ip values being specified"
+                    "Can't fetch ip_address without id or ip values being specified",
                 )
 
             if for_update:
@@ -95,7 +95,7 @@ class IPAddressDBManager(BaseDBManager):
         current_session: AsyncSession | None = None,
     ) -> list[IPAddress]:
         async with self.use_or_create_session(
-            current_session=current_session
+            current_session=current_session,
         ) as session:
             query = select(IPAddress).where(
                 or_(
@@ -118,14 +118,14 @@ class IPAddressDBManager(BaseDBManager):
         current_session: AsyncSession | None = None,
     ) -> list[str]:
         async with self.use_or_create_session(
-            current_session=current_session
+            current_session=current_session,
         ) as session:
             query = select(IPAddress.ip).where(IPAddress.status == IPStatus.BLACKLIST)
 
             query = query.order_by(IPAddress.last_blacklist_at.desc())
 
             result = await session.execute(query)
-            return [row[0] for row in result.all()]
+            return [str(row[0]) for row in result.all()]
 
     async def patch_ip_address(
         self,
@@ -154,7 +154,7 @@ class IPAddressDBManager(BaseDBManager):
         update_data["updated_at"] = datetime.now()
 
         async with self.use_or_create_session(
-            current_session=current_session
+            current_session=current_session,
         ) as session:
             if id is not None:
                 where_clause = IPAddress.id == id
@@ -162,7 +162,7 @@ class IPAddressDBManager(BaseDBManager):
                 where_clause = IPAddress.ip == ip
             else:
                 raise ValueError(
-                    "Either id or ip must be specified to patch ip_address"
+                    "Either id or ip must be specified to patch ip_address",
                 )
 
             statement = (
@@ -182,7 +182,7 @@ class IPAddressDBManager(BaseDBManager):
         current_session: AsyncSession | None = None,
     ) -> None:
         async with self.use_or_create_session(
-            current_session=current_session
+            current_session=current_session,
         ) as session:
             if id is not None:
                 query = delete(IPAddress).where(IPAddress.id == id)
@@ -190,7 +190,7 @@ class IPAddressDBManager(BaseDBManager):
                 query = delete(IPAddress).where(IPAddress.ip == ip)
             else:
                 raise ValueError(
-                    "Can't delete ip_address without id or host values being specified"
+                    "Can't delete ip_address without id or host values being specified",
                 )
 
             await session.execute(query)
@@ -200,7 +200,7 @@ class IPAddressDBManager(BaseDBManager):
         current_session: AsyncSession | None = None,
     ) -> None:
         async with self.use_or_create_session(
-            current_session=current_session
+            current_session=current_session,
         ) as session:
             statement = delete(IPAddress).where(
                 and_(
@@ -220,7 +220,7 @@ class IPAddressDBManager(BaseDBManager):
             return []
 
         async with self.use_or_create_session(
-            current_session=current_session
+            current_session=current_session,
         ) as session:
             values: list[dict[str, Any]] = []
             for ip_data in ip_addresses:
@@ -231,7 +231,7 @@ class IPAddressDBManager(BaseDBManager):
                         "description": ip_data.get("description"),
                         "last_blacklist_at": ip_data.get("last_blacklist_at"),
                         "expires_at": ip_data.get("expires_at"),
-                    }
+                    },
                 )
 
             statement = (
@@ -243,7 +243,7 @@ class IPAddressDBManager(BaseDBManager):
                         "status": insert(IPAddress).excluded.status,
                         "description": insert(IPAddress).excluded.description,
                         "last_blacklist_at": insert(
-                            IPAddress
+                            IPAddress,
                         ).excluded.last_blacklist_at,
                         "expires_at": insert(IPAddress).excluded.expires_at,
                         "updated_at": func.now(),

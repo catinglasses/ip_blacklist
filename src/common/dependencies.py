@@ -11,7 +11,7 @@ from src.db.managers.db_manager import DBManager, init_db_manager
 async def get_db_manager() -> AsyncGenerator[DBManager, None]:
     db_manager = await init_db_manager(
         db_connection_url=settings.DATABASE_URL,
-        run_migrations=True,
+        run_migrations=False,
     )
 
     try:

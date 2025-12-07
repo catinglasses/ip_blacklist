@@ -37,7 +37,7 @@ class DBManager(BaseDBManager):
 
 async def init_db_manager(
     db_connection_url: str,
-    run_migrations: bool = True,
+    run_migrations: bool = False,
 ) -> DBManager:
     engine = create_async_engine(
         url=db_connection_url,
