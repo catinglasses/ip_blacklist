@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import (
     DateTime,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -30,6 +31,7 @@ class IPAddress(Base):
     ip: Mapped[INET] = mapped_column(INET, nullable=False)
     status: Mapped[IPStatus] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ttl: Mapped[int] = mapped_column(Integer, nullable=True)  # in days, ge=1 le=365
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),

@@ -24,7 +24,7 @@ class IPAddressService(BaseService):
         ttl_days: int | None = None,
     ) -> datetime:
         if ttl_days is None:
-            return datetime.now() + timedelta(days=settings.IP_COOLING_PERIOD)
+            return datetime.now() + timedelta(days=settings.DEFAULT_TTL + settings.IP_COOLING_PERIOD)
 
         if not (1 <= ttl_days <= 365):
             raise InvalidTTLException()
@@ -42,6 +42,7 @@ class IPAddressService(BaseService):
         new_ip = await self.adapters_manager.ip_adapter.create_ip(
             ip=ip_data.ip,
             status=ip_data.status,
+            ttl=ip_data.ttl,
             description=ip_data.description,
             expires_at=expires_at,
             last_blacklist_at=datetime.now(),
@@ -85,7 +86,7 @@ class IPAddressService(BaseService):
                 f"Previous description: {ip_address.description or None}"
             ),
             expires_at=await self._calculate_expires_at(
-                ttl_days=settings.REPEATED_BLACKLIST_IP_TTL
+                ttl_days=settings.REPEATED_BLACKLIST_IP_TTL,
             ),
         )
 

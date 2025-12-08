@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, delete, or_, select, update
+from sqlalchemy import and_, delete, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -20,6 +20,7 @@ class IPAddressDBManager(BaseDBManager):
         self,
         ip: str,
         status: IPStatus,
+        ttl: int,
         description: str | None = None,
         created_at: datetime | None = None,
         last_blacklist_at: datetime | None = None,
@@ -29,6 +30,7 @@ class IPAddressDBManager(BaseDBManager):
         values: dict[str, Any] = {
             "ip": ip,
             "status": status.value if hasattr(status, "value") else status,
+            'ttl': ttl,
             "description": description,
             "created_at": created_at,
             "last_blacklist_at": last_blacklist_at,
@@ -47,6 +49,7 @@ class IPAddressDBManager(BaseDBManager):
                     index_elements=["ip"],
                     set_={
                         "status": values.get("status"),
+                        'ttl': values.get('ttl'),
                         "description": values.get("description"),
                         "created_at": values.get("created_at"),
                         "last_blacklist_at": values.get("last_blacklist_at"),
@@ -84,6 +87,56 @@ class IPAddressDBManager(BaseDBManager):
 
             if for_update:
                 query = query.with_for_update()
+
+            return await session.scalar(query)
+
+    async def get_blacklisted_ip_to_archive(
+        self,
+        cooling_period: int,
+        current_session: AsyncSession | None = None,
+    ) -> IPAddress | None:
+        async with self.use_or_create_session(
+            current_session=current_session,
+        ) as session:
+            condition = and_(
+                IPAddress.status == IPStatus.BLACKLIST.value,
+                IPAddress.last_blacklist_at.is_not(None),
+                IPAddress.ttl.is_not(None),
+                IPAddress.last_blacklist_at + text(
+                    f"interval '{cooling_period} days'",
+                ) + func.cast(IPAddress.ttl, text) * text("interval '1 day'") <= func.now()
+            )
+
+            query = (
+                select(IPAddress)
+                .where(condition)
+                .order_by(IPAddress.last_blacklist_at.asc())
+                .limit(1)
+                .with_for_update(skip_locked=True)
+            )
+
+            return await session.scalar(query)
+
+    async def get_expired_ip_to_delete(
+        self,
+        current_session: AsyncSession | None = None,
+    ) -> IPAddress | None:
+        async with self.use_or_create_session(
+            current_session=current_session,
+        ) as session:
+            condition = and_(
+                IPAddress.expires_at.is_not(None),
+                IPAddress.expires_at <= func.now(),
+                IPAddress.status == IPStatus.ARCHIVED.value,
+            )
+
+            query = (
+                select(IPAddress)
+                .where(condition)
+                .order_by(IPAddress.expires_at.asc())
+                .limit(1)
+                .with_for_update(skip_locked=True)
+            )
 
             return await session.scalar(query)
 
@@ -194,22 +247,6 @@ class IPAddressDBManager(BaseDBManager):
                 )
 
             await session.execute(query)
-
-    async def cleanup_expired(
-        self,
-        current_session: AsyncSession | None = None,
-    ) -> None:
-        async with self.use_or_create_session(
-            current_session=current_session,
-        ) as session:
-            statement = delete(IPAddress).where(
-                and_(
-                    IPAddress.expires_at.is_not(None),
-                    IPAddress.expires_at <= func.now(),
-                ),
-            )
-
-            await session.execute(statement)
 
     async def bulk_add_ip_addresses(
         self,

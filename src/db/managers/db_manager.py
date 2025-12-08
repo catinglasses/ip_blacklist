@@ -37,22 +37,11 @@ class DBManager(BaseDBManager):
 
 async def init_db_manager(
     db_connection_url: str,
-    run_migrations: bool = False,
 ) -> DBManager:
     engine = create_async_engine(
         url=db_connection_url,
         pool_pre_ping=True,
         pool_size=settings.DB_MAX_CONNECTIONS,
     )
-
-    if run_migrations:
-
-        def run_upgrade(connection: Connection, alembic_config: Config) -> None:
-            alembic_config.attributes["connection"] = connection
-            alembic_config.attributes["skip_logging_configuration"] = "True"
-            upgrade(alembic_config, "head")
-
-        async with engine.begin() as conn:
-            await conn.run_sync(run_upgrade, Config("alembic.ini"))
 
     return DBManager(async_engine=engine)

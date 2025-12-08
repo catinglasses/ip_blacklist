@@ -31,4 +31,8 @@ DB_SETTINGS = DatabaseSettings()  # type: ignore
 DATABASE_URL = DB_SETTINGS.database_url
 
 IP_COOLING_PERIOD = int(getenv("IP_COOLING_PERIOD", 30))  # in days
+DEFAULT_TTL = int(getenv('DEFAULT_TTL', 7))  # in days
 REPEATED_BLACKLIST_IP_TTL = int(getenv("REPEATED_BLACKLIST_IP_TTL", 30))  # in days
+
+ARCHIVE_CHECK_PERIOD = 300  # in seconds
+CLEANUP_PERIOD = 300 # in seconds

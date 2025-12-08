@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio.session import _AsyncSessionContextManager  # type: ignore
 
+from settings import DEFAULT_TTL, IP_COOLING_PERIOD
 from src.adapters.helpers import AdapterSession
 from src.common.enums import IPStatus
 from src.db.managers.db_manager import DBManager
@@ -36,6 +37,7 @@ class IPAddressAdapter:
         self,
         ip: str,
         status: IPStatus,
+        ttl: int | None,
         description: str | None = None,
         expires_at: datetime | None = None,
         last_blacklist_at: datetime | None = None,
@@ -45,6 +47,7 @@ class IPAddressAdapter:
             return await self._db_manager.ip_manager.upsert_ip_address(
                 ip=ip,
                 status=status,
+                ttl=ttl or DEFAULT_TTL,
                 description=description,
                 expires_at=expires_at,
                 last_blacklist_at=last_blacklist_at,
@@ -102,17 +105,52 @@ class IPAddressAdapter:
             logger.error(f"Error getting blacklisted IPs: {e}")
             raise
 
-    async def cleanup_expired(
+    async def archive_ip(
         self,
         adapter_session: AdapterSession | None = None,
-    ) -> None:
+    ) -> bool:
         try:
-            await self._db_manager.ip_manager.cleanup_expired(
+            ip_to_archive = await self._db_manager.ip_manager.get_blacklisted_ip_to_archive(
+                cooling_period=IP_COOLING_PERIOD,
                 current_session=adapter_session,
             )
+
+            if not ip_to_archive:
+                return False
+
+            archived_ip = await self._db_manager.ip_manager.patch_ip_address(
+                id=ip_to_archive.id,
+                status=IPStatus.ARCHIVED,
+                current_session=adapter_session,
+            )
+
+            return archived_ip is not None
+
         except Exception as e:
-            logger.error(f"Error cleaning up expired IPs: {e}")
-            raise
+            logger.error(f'Error archiving IP: {e}')
+            return False
+
+    async def delete_expired_ip(
+        self,
+        adapter_session: AdapterSession | None = None,
+    ) -> bool:
+        try:
+            ip_to_delete = await self._db_manager.ip_manager.get_expired_ip_to_delete(
+                current_session=adapter_session,
+            )
+
+            if not ip_to_delete:
+                return False
+
+            await self._db_manager.ip_manager.delete_ip_address(
+                id=ip_to_delete.id,
+                current_session=adapter_session,
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f'Error deleting expired IP: {e}')
+            return False
 
     async def check_ip_exists(
         self,
